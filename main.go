@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/W1lkins/go-for-train/version"
 	"github.com/genuinetools/pkg/cli"
 	"github.com/sirupsen/logrus"
-	"github.com/w1lkins/go-for-train/version"
 )
 
 var (

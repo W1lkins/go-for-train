@@ -1,4 +1,4 @@
-module github.com/w1lkins/go-for-train
+module github.com/W1lkins/go-for-train
 
 require (
 	github.com/PuerkitoBio/goquery v1.5.0

@@ -3,9 +3,7 @@ FROM golang:alpine as builder
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
 
-RUN	apk add --no-cache \
-	bash \
-	ca-certificates
+RUN	apk add --no-cache ca-certificates bash
 
 COPY . /go/src/github.com/W1lkins/go-for-train
 
@@ -17,7 +15,7 @@ RUN set -x \
 		libgcc \
 		make \
 	&& cd /go/src/github.com/W1lkins/go-for-train \
-	&& make static \
+    && make static \
 	&& mv go-for-train /usr/bin/go-for-train \
 	&& apk del .build-deps \
 	&& rm -rf /go \
