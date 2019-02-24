@@ -7,7 +7,6 @@ const StatusURL = `https://www.scotrail.co.uk/ajax/interactive_map/status`
 type StatusResponse struct {
 	Routes struct {
 		HomeRoute struct {
-			Map    string `json:"map"`
 			Status string `json:"status"`
 		} `json:"route-7-strathclyde_n-helensburgh_milngavie_edinburgh_bathgate"`
 	} `json:"routes"`

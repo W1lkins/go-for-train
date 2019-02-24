@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -22,11 +21,7 @@ type Client struct {
 // NewClient returns an instance of Client
 func NewClient() Client {
 	http := &http.Client{Timeout: 10 * time.Second}
-	key, ok := os.LookupEnv("PUSHOVER_APP_KEY")
-	if !ok {
-		logrus.Fatal("PUSHOVER_APP_KEY not found")
-	}
-	pushover := pushover.New(key)
+	pushover := pushover.New(pushoverAppKey)
 
 	nine := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), 9, 0, 0, 0, time.UTC)
 	five := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), 17, 0, 0, 0, time.UTC)
@@ -78,7 +73,7 @@ func (c Client) FindNextServices() map[string]Service {
 
 	// Parse HTML
 	doc, _ := goquery.NewDocumentFromReader(res.Body)
-	services := make(map[string]Service, 0)
+	services := make(map[string]Service)
 	doc.Find("tr.service").Each(func(i int, s *goquery.Selection) {
 		care := true
 		s.ChildrenFiltered("td").Each(func(i int, s *goquery.Selection) {
@@ -135,22 +130,17 @@ func (c Client) CheckService(sr Service) {
 	doc, _ := goquery.NewDocumentFromReader(res.Body)
 	doc.Find("ul").ChildrenFiltered("li").Each(func(i int, s *goquery.Selection) {
 		if strings.Contains(s.Text(), "Edinburgh Park") {
-			r := regexp.MustCompile("\\d\\d:\\d\\d")
+			r := regexp.MustCompile(`\d\d:\d\d`)
 			time := r.Find([]byte(s.Text()))
 			logrus.Infof(
 				"Service expected at Edinburgh Park: %s, actually arriving at: %s",
 				sr.Departs,
 				string(time),
 			)
-			key, ok := os.LookupEnv("PUSHOVER_CLIENT_KEY")
-			if !ok {
-				logrus.Warning("Would try to send notification but PUSHOVER_CLIENT_KEY not defined")
-				return
-			}
 
 			if c.messager.shouldSend() {
 				logrus.Debugf("Should send is %v, so sending message", c.messager.shouldSend())
-				recipient := pushover.NewRecipient(key)
+				recipient := pushover.NewRecipient(pushoverClientKey)
 				message := pushover.NewMessageWithTitle("Actually arriving at "+string(time), "Issue with service at "+sr.Departs)
 				c.messager.client.SendMessage(message, recipient)
 			}

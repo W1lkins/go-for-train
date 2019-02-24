@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -20,6 +21,10 @@ var (
 	interval time.Duration
 	// Whether we should run once or not
 	once bool
+	// Pushover app key
+	pushoverAppKey string
+	// Pushover client key
+	pushoverClientKey string
 )
 
 func main() {
@@ -36,6 +41,9 @@ func main() {
 	p.FlagSet.BoolVar(&once, "once", false, "run once and exit")
 	p.FlagSet.DurationVar(&interval, "interval", 15*time.Minute, "update interval (ex. 5ms, 10s, 1m, 3h)")
 
+	p.FlagSet.StringVar(&pushoverAppKey, "app-key", os.Getenv("PUSHOVER_APP_KEY"), "pushover app key")
+	p.FlagSet.StringVar(&pushoverClientKey, "client-key", os.Getenv("PUSHOVER_CLIENT_KEY"), "pushover client key")
+
 	p.Before = func(ctx context.Context) error {
 		if debug {
 			logrus.SetLevel(logrus.DebugLevel)
@@ -44,6 +52,10 @@ func main() {
 	}
 
 	p.Action = func(ctx context.Context, args []string) error {
+		if pushoverAppKey == "" || pushoverClientKey == "" {
+			return fmt.Errorf("pushoverAppKey, and pushoverClientKey are required")
+		}
+
 		ticker := time.NewTicker(interval)
 
 		// On ^C, or SIGTERM handle exit.
