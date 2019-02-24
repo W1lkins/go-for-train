@@ -56,8 +56,8 @@ Usage: go-for-train <command>
 
 Flags:
 
-  --app-key     pushover app key (default: foo)
-  --client-key  pushover client key (default: bar)
+  --app-key     pushover app key (default: <none>)
+  --client-key  pushover client key (default: <none>)
   -d, --debug   enable debug logging (default: false)
   --interval    update interval (ex. 5ms, 10s, 1m, 3h) (default: 15m0s)
   --once        run once and exit (default: false)
