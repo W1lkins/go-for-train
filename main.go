@@ -30,7 +30,7 @@ var (
 func main() {
 	p := cli.NewProgram()
 	p.Name = "go-for-train"
-	p.Description = "A bot that checks the status of a train journey and alerts you if it is late or cancelled"
+	p.Description = "A bot that checks the status of my train journey and notifies me about it."
 	p.GitCommit = version.GITCOMMIT
 	p.Version = version.VERSION
 
