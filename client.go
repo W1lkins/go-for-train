@@ -24,7 +24,7 @@ func NewClient() Client {
 	http := &http.Client{Timeout: 10 * time.Second}
 	key, ok := os.LookupEnv("PUSHOVER_APP_KEY")
 	if !ok {
-		logrus.Fatal("PUSHOVER_API_KEY not found")
+		logrus.Fatal("PUSHOVER_APP_KEY not found")
 	}
 	pushover := pushover.New(key)
 
