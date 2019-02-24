@@ -91,7 +91,7 @@ func run() error {
 	services := client.FindNextServices()
 	for _, service := range services {
 		logrus.Info(service)
-		if !service.HasIssue {
+		if service.HasIssue {
 			logrus.Infof("Service %s has an issue, checking now...", service.ID)
 			client.CheckService(service)
 		}
