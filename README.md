@@ -41,8 +41,8 @@ want to send messages to.
 # or pass them into the container.
 $ docker run -d --restart always \
     --name go-for-train \
-    -e PUSHOVER_APP_KEY=foo
-    -e PUSHOVER_CLIENT_KEY=bar
+    -e PUSHOVER_APP_KEY=foo \
+    -e PUSHOVER_CLIENT_KEY=bar \
     w1lkins/go-for-train -d --interval 15m
 ```
 
