@@ -33,7 +33,7 @@ func main() {
 	p.FlagSet.BoolVar(&debug, "d", false, "enable debug logging")
 	p.FlagSet.BoolVar(&debug, "debug", false, "enable debug logging")
 
-	p.FlagSet.BoolVar(&once, "once", true, "run once and exit")
+	p.FlagSet.BoolVar(&once, "once", false, "run once and exit")
 	p.FlagSet.DurationVar(&interval, "interval", 15*time.Minute, "update interval (ex. 5ms, 10s, 1m, 3h)")
 
 	p.Before = func(ctx context.Context) error {
