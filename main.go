@@ -25,6 +25,10 @@ var (
 	pushoverAppKey string
 	// Pushover client key
 	pushoverClientKey string
+	// Send messages between this hour (lower bound)
+	initialHour int
+	// Send messages between this hour (upper bound)
+	finalHour int
 )
 
 func main() {
@@ -43,6 +47,9 @@ func main() {
 
 	p.FlagSet.StringVar(&pushoverAppKey, "app-key", os.Getenv("PUSHOVER_APP_KEY"), "pushover app key")
 	p.FlagSet.StringVar(&pushoverClientKey, "client-key", os.Getenv("PUSHOVER_CLIENT_KEY"), "pushover client key")
+
+	p.FlagSet.IntVar(&initialHour, "initial-hour", 6, "Send messages between these hours (lower bound)")
+	p.FlagSet.IntVar(&finalHour, "final-hour", 17, "Send messages between these hours (upper bound)")
 
 	p.Before = func(ctx context.Context) error {
 		if debug {

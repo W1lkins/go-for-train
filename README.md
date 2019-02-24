@@ -49,18 +49,19 @@ $ docker run -d --restart always \
 ## Usage
 
 ```console
-go-for-train -  A bot that checks the status of my train journey and notifies me
-about it.
+go-for-train -  A bot that checks the status of my train journey and notifies me about it.
 
 Usage: go-for-train <command>
 
 Flags:
 
-  --app-key     pushover app key (default: <none>)
-  --client-key  pushover client key (default: <none>)
-  -d, --debug   enable debug logging (default: false)
-  --interval    update interval (ex. 5ms, 10s, 1m, 3h) (default: 15m0s)
-  --once        run once and exit (default: false)
+  --app-key       pushover app key (default: <none>)
+  --client-key    pushover client key (default: <none>)
+  -d, --debug     enable debug logging (default: false)
+  --final-hour    Send messages between these hours (upper bound) (default: 17)
+  --initial-hour  Send messages between these hours (lower bound) (default: 6)
+  --interval      update interval (ex. 5ms, 10s, 1m, 3h) (default: 15m0s)
+  --once          run once and exit (default: false)
 
 Commands:
 

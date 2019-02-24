@@ -23,8 +23,8 @@ func NewClient() Client {
 	http := &http.Client{Timeout: 10 * time.Second}
 	pushover := pushover.New(pushoverAppKey)
 
-	nine := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), 9, 0, 0, 0, time.UTC)
-	five := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), 17, 0, 0, 0, time.UTC)
+	nine := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), initialHour, 0, 0, 0, time.UTC)
+	five := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), finalHour, 0, 0, 0, time.UTC)
 	shouldSend := func() bool {
 		return time.Now().After(nine) && time.Now().Before(five)
 	}
@@ -139,7 +139,7 @@ func (c Client) CheckService(sr Service) {
 			)
 
 			if c.messager.shouldSend() {
-				logrus.Debugf("Should send is %v, so sending message", c.messager.shouldSend())
+				logrus.Debugf("It is between hour %d and hour %d, sending", initialHour, finalHour)
 				recipient := pushover.NewRecipient(pushoverClientKey)
 				message := pushover.NewMessageWithTitle("Actually arriving at "+string(time), "Issue with service at "+sr.Departs)
 				c.messager.client.SendMessage(message, recipient)
