@@ -43,12 +43,12 @@ func main() {
 	p.FlagSet.BoolVar(&debug, "debug", false, "enable debug logging")
 
 	p.FlagSet.BoolVar(&once, "once", false, "run once and exit")
-	p.FlagSet.DurationVar(&interval, "interval", 15*time.Minute, "update interval (ex. 5ms, 10s, 1m, 3h)")
+	p.FlagSet.DurationVar(&interval, "interval", 10*time.Minute, "update interval (ex. 5ms, 10s, 1m, 3h)")
 
 	p.FlagSet.StringVar(&pushoverAppKey, "app-key", os.Getenv("PUSHOVER_APP_KEY"), "pushover app key")
 	p.FlagSet.StringVar(&pushoverClientKey, "client-key", os.Getenv("PUSHOVER_CLIENT_KEY"), "pushover client key")
 
-	p.FlagSet.IntVar(&initialHour, "initial-hour", 6, "Send messages between these hours (lower bound)")
+	p.FlagSet.IntVar(&initialHour, "initial-hour", 15, "Send messages between these hours (lower bound)")
 	p.FlagSet.IntVar(&finalHour, "final-hour", 17, "Send messages between these hours (upper bound)")
 
 	p.Before = func(ctx context.Context) error {
