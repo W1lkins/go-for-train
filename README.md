@@ -33,7 +33,7 @@ $ go get -u -v github.com/w1lkins/go-for-train
 Create a Pushover app and grab your app key and client key from a device you
 want to send messages to.
 
-**Run it in daemon mode with twitter keys/tokens**
+**Run it in daemon mode with Pushover key/token**
 
 ```console
 # You need to either have environment variables that are
