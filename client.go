@@ -26,7 +26,8 @@ func NewClient() Client {
 	nine := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), initialHour, 0, 0, 0, time.UTC)
 	five := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), finalHour, 0, 0, 0, time.UTC)
 	shouldSend := func() bool {
-		return time.Now().After(nine) && time.Now().Before(five)
+		now := time.Now()
+		return now.Weekday() != 6 && now.Weekday() != 7 && now.After(nine) && now.Before(five)
 	}
 	messager := &Messager{client: pushover, shouldSend: shouldSend}
 	return Client{http, messager}
