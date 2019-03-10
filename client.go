@@ -1,13 +1,14 @@
 package main
 
 import (
-	"encoding/json"
+	"bytes"
+	"encoding/xml"
+	"fmt"
+	"io/ioutil"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/gregdel/pushover"
 	"github.com/sirupsen/logrus"
 )
@@ -22,7 +23,6 @@ type Client struct {
 func NewClient() Client {
 	http := &http.Client{Timeout: 10 * time.Second}
 	pushover := pushover.New(pushoverAppKey)
-
 	nine := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), initialHour, 0, 0, 0, time.UTC)
 	five := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), finalHour, 0, 0, 0, time.UTC)
 	shouldSend := func() bool {
@@ -33,118 +33,68 @@ func NewClient() Client {
 	return Client{http, messager}
 }
 
-// CheckHomeRouteStatus checks the status of
-// route-7-strathclyde_n-helensburgh_milngavie_edinburgh_bathgate
-func (c Client) CheckHomeRouteStatus() bool {
-	res, err := c.http.Get(StatusURL)
+// GetNextServices gets the next services for a certain station code e.g. EDP
+// TODO(jwilkins): This should take a ServiceRule struct instead as an arg
+func (c Client) GetNextServices(stationCode string) []Service {
+	payload := []byte(strings.TrimSpace(fmt.Sprintf(`
+<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:typ="http://thalesgroup.com/RTTI/2013-11-28/Token/types" xmlns:ldb="http://thalesgroup.com/RTTI/2017-10-01/ldb/">
+   <soap:Header>
+      <typ:AccessToken>
+         <typ:TokenValue>%s</typ:TokenValue>
+      </typ:AccessToken>
+   </soap:Header>
+   <soap:Body>
+      <ldb:GetDepartureBoardRequest>
+         <ldb:numRows>150</ldb:numRows>
+         <ldb:crs>%s</ldb:crs>
+         <ldb:filterCrs></ldb:filterCrs>
+         <ldb:filterType>from</ldb:filterType>
+         <ldb:timeOffset>0</ldb:timeOffset>
+         <ldb:timeWindow>120</ldb:timeWindow>
+      </ldb:GetDepartureBoardRequest>
+   </soap:Body>
+</soap:Envelope>
+`, nRailAppKey, stationCode,
+	)))
+
+	const soapURL = `https://lite.realtime.nationalrail.co.uk/OpenLDBWS/ldb11.asmx`
+	res, err := c.http.Post(soapURL, "text/xml", bytes.NewReader(payload))
 	if err != nil {
-		logrus.Fatalf("Could not get status of routes: %v", err)
+		logrus.Fatalf("Could not POST SOAP: %v", err)
 	}
-	if res.StatusCode != 200 {
-		logrus.Fatalf("Got %d response code from route status check", res.StatusCode)
-	}
-	defer res.Body.Close()
-
-	var statusRes StatusResponse
-	decoder := json.NewDecoder(res.Body)
-	err = decoder.Decode(&statusRes)
+	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		logrus.Fatalf("Could not decode JSON: %v", err)
+		logrus.Fatalf("Could not read bytes from body: %v", err)
 	}
 
-	logrus.Debugf("%+v", statusRes)
-	logrus.Infof("Got status for home route: %s", statusRes.toStatus())
-
-	return statusRes.isOk()
-}
-
-// LiveURL is the URL of the live-boards endpoint
-const liveURL = `https://www.scotrail.co.uk/nre/live-boards/EDP/lazy`
-
-// FindNextServices will generate a list of the next services using Scotrails live-boards endpoint
-func (c Client) FindNextServices() map[string]Service {
-	res, err := c.http.Get(liveURL)
+	var statusRes GetDepartureBoardResponseEnvelope
+	err = xml.Unmarshal(b, &statusRes)
 	if err != nil {
-		logrus.Fatalf("Could not get live URL: %v", err)
+		logrus.Fatalf("Could not unmarshal XML: %v", err)
 	}
-	if res.StatusCode != 200 {
-		logrus.Fatalf("Got %d response code from live departure check", res.StatusCode)
-	}
-	defer res.Body.Close()
 
-	// Parse HTML
-	doc, _ := goquery.NewDocumentFromReader(res.Body)
-	services := make(map[string]Service)
-	doc.Find("tr.service").Each(func(i int, s *goquery.Selection) {
-		care := true
-		s.ChildrenFiltered("td").Each(func(i int, s *goquery.Selection) {
-			if s.AttrOr("data-label", "") == "Destination" {
-				if s.Text() != "Helensburgh Central" && s.Text() != "Milngavie" {
-					care = false
-				}
-			}
-		})
-		if !care {
-			return
+	services := make([]Service, 0)
+	for _, s := range statusRes.Body.GetDepartureBoardResponse.GetStationBoardResult.TrainServices.Service {
+		origin := s.Origin.Location.LocationName
+		destination := s.Destination.Location.LocationName
+		// TODO(jwilkins): Parse these from ServiceRules instead
+		if origin != "Edinburgh" || destination != "Helensburgh Central" && destination != "Milngavie" && destination != "Bathgate" {
+			continue
 		}
+		service := Service{
+			ID:              s.ServiceID,
+			Origin:          origin,
+			Destination:     destination,
+			Late:            s.Etd != "On time",
+			Scheduled:       s.Std,
+			Estimated:       s.Etd,
+			Cancelled:       s.IsCancelled != "",
+			CancelledReason: s.CancelReason,
+			CheckedAt:       time.Now(),
+		}
+		services = append(services, service)
+	}
 
-		var service = new(Service)
-		ID := s.AttrOr("data-id", "unknown")
-		service.ID = ID
-		s.Find("td").Each(func(i int, s *goquery.Selection) {
-			switch s.AttrOr("data-label", "") {
-			case "Arrives":
-				// Our departure time is when it's due to arrive at EDP
-				service.Departs = s.Text()
-			case "Destination":
-				service.Destination = s.Text()
-			case "Expected":
-				service.Status = s.Text()
-				if s.Text() != "On time" {
-					logrus.Debugf("Not 'On time'. Got '%s' setting HasIssue to true", s.Text())
-					service.HasIssue = true
-				}
-			case "Origin":
-				service.Origin = s.Text()
-			}
-		})
-		service.CheckedAt = time.Now()
-		services[ID] = *service
-	})
-
+	logrus.Debug(services)
 	return services
-}
-
-const serviceURL = `https://www.scotrail.co.uk/nre/service-details/`
-
-// CheckService will check the status of an individual service using the service-details endpoint
-func (c Client) CheckService(sr Service) {
-	res, err := c.http.Get(serviceURL + sr.ID)
-	if err != nil {
-		logrus.Fatalf("Could not get live URL: %v", err)
-	}
-	if res.StatusCode != 200 {
-		logrus.Fatalf("Got %d response code from live departure check", res.StatusCode)
-	}
-	defer res.Body.Close()
-
-	doc, _ := goquery.NewDocumentFromReader(res.Body)
-	doc.Find("ul").ChildrenFiltered("li").Each(func(i int, s *goquery.Selection) {
-		if strings.Contains(s.Text(), "Edinburgh Park") {
-			r := regexp.MustCompile(`\d\d:\d\d`)
-			time := r.Find([]byte(s.Text()))
-			logrus.Infof(
-				"Service expected at Edinburgh Park: %s, actually arriving at: %s",
-				sr.Departs,
-				string(time),
-			)
-
-			if c.messager.shouldSend() {
-				logrus.Debugf("It is between hour %d and hour %d, sending", initialHour, finalHour)
-				recipient := pushover.NewRecipient(pushoverClientKey)
-				message := pushover.NewMessageWithTitle("Actually arriving at "+string(time), "Issue with service at "+sr.Departs)
-				c.messager.client.SendMessage(message, recipient)
-			}
-		}
-	})
 }
