@@ -15,6 +15,7 @@ RUN set -x \
 		libgcc \
 		make \
 	&& cd /go/src/github.com/W1lkins/go-for-train \
+    && GO111MODULE=on go mod verify \
     && make static \
 	&& mv go-for-train /usr/bin/go-for-train \
 	&& apk del .build-deps \
