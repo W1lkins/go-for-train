@@ -11,6 +11,7 @@ import (
 
 	"github.com/W1lkins/go-for-train/version"
 	"github.com/genuinetools/pkg/cli"
+	"github.com/gregdel/pushover"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,6 +22,8 @@ var (
 	interval time.Duration
 	// Whether we should run once or not
 	once bool
+	// NationalRail API key from (http://lite.realtime.nationalrail.co.uk/openldbws/)
+	nRailAppKey string
 	// Pushover app key
 	pushoverAppKey string
 	// Pushover client key
@@ -45,8 +48,10 @@ func main() {
 	p.FlagSet.BoolVar(&once, "once", false, "run once and exit")
 	p.FlagSet.DurationVar(&interval, "interval", 10*time.Minute, "update interval (ex. 5ms, 10s, 1m, 3h)")
 
-	p.FlagSet.StringVar(&pushoverAppKey, "app-key", os.Getenv("PUSHOVER_APP_KEY"), "pushover app key")
-	p.FlagSet.StringVar(&pushoverClientKey, "client-key", os.Getenv("PUSHOVER_CLIENT_KEY"), "pushover client key")
+	p.FlagSet.StringVar(&nRailAppKey, "national-rail-key", os.Getenv("NATIONAL_RAIL_APP_KEY"), "national rail api key")
+
+	p.FlagSet.StringVar(&pushoverAppKey, "pushover-app-key", os.Getenv("PUSHOVER_APP_KEY"), "pushover app key")
+	p.FlagSet.StringVar(&pushoverClientKey, "pushover-client-key", os.Getenv("PUSHOVER_CLIENT_KEY"), "pushover client key")
 
 	p.FlagSet.IntVar(&initialHour, "initial-hour", 15, "Send messages between these hours (lower bound)")
 	p.FlagSet.IntVar(&finalHour, "final-hour", 17, "Send messages between these hours (upper bound)")
@@ -59,8 +64,8 @@ func main() {
 	}
 
 	p.Action = func(ctx context.Context, args []string) error {
-		if pushoverAppKey == "" || pushoverClientKey == "" {
-			return fmt.Errorf("pushoverAppKey, and pushoverClientKey are required")
+		if nRailAppKey == "" || pushoverAppKey == "" || pushoverClientKey == "" {
+			return fmt.Errorf("national-rail-key, pushover-app-key, and pushover-client-key are required")
 		}
 
 		ticker := time.NewTicker(interval)
@@ -94,13 +99,22 @@ func main() {
 
 func run() error {
 	client := NewClient()
-	client.CheckHomeRouteStatus()
-	services := client.FindNextServices()
+	services := client.GetNextServices("EDP")
 	for _, service := range services {
-		logrus.Info(service)
-		if service.HasIssue {
-			logrus.Infof("Service %s has an issue, checking now...", service.ID)
-			client.CheckService(service)
+		logrus.Infof("Checking service: %s", service.ID)
+		if service.Late || service.Cancelled {
+			logrus.Infof("Service %s has an issue, checking whether we should send a notification", service.ID)
+			if client.messager.shouldSend() {
+				logrus.Debugf("It is between hour %d and hour %d, sending", initialHour, finalHour)
+				recipient := pushover.NewRecipient(pushoverClientKey)
+				message := pushover.NewMessageWithTitle(
+					fmt.Sprintf("Late: %v\nCancelled: %v\nReason: %s", service.Late, service.Cancelled, service.CancelledReason),
+					fmt.Sprintf("Problem with service at %s", service.Scheduled),
+				)
+				client.messager.client.SendMessage(message, recipient)
+			} else {
+				logrus.Info("Not sending message")
+			}
 		}
 	}
 
