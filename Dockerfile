@@ -30,6 +30,8 @@ COPY --from=builder /etc/ssl/certs/ /etc/ssl/certs
 RUN adduser -D -u 1000 user \
   && chown -R user /home/user
 
+RUN mkdir -p /home/user/.config/go-for-train/config
+
 USER user
 
 ENV USER user

@@ -30,10 +30,10 @@ $ go get -u -v github.com/w1lkins/go-for-train
 
 **Authentication**
 
-Create a Pushover app and grab your app key and client key from a device you
-want to send messages to.
+Create a Pushover app and grab your app key and client key from a device you want to send messages to.
+You'll need to sign up to the National Rail API [here](http://realtime.nationalrail.co.uk/OpenLDBWSRegistration/) to get an API key.
 
-**Run it in daemon mode with Pushover key/token**
+**Run it in daemon mode with Pushover key/token + National Rail API key**
 
 ```console
 # You need to either have environment variables that are
@@ -44,6 +44,7 @@ $ docker run -d --restart always \
     -e PUSHOVER_APP_KEY=foo \
     -e PUSHOVER_CLIENT_KEY=bar \
     -e NATIONAL_RAIL_APP_KEY=baz \
+    -v /path/to/config.toml:/home/user/.config/go-for-train/config/config.toml \
     w1lkins/go-for-train -d --interval 15m
 ```
 

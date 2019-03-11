@@ -33,9 +33,9 @@ func NewClient() Client {
 	return Client{http, messager}
 }
 
-// GetNextServices gets the next services for a certain station code e.g. EDP
-// TODO(jwilkins): This should take a ServiceRule struct instead as an arg
-func (c Client) GetNextServices(stationCode string) []Service {
+// GetNextServices gets the next services for a certain station
+// these results are then filtered by the rules in the config.toml
+func (c Client) GetNextServices() []Service {
 	payload := []byte(strings.TrimSpace(fmt.Sprintf(`
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:typ="http://thalesgroup.com/RTTI/2013-11-28/Token/types" xmlns:ldb="http://thalesgroup.com/RTTI/2017-10-01/ldb/">
    <soap:Header>
@@ -54,33 +54,36 @@ func (c Client) GetNextServices(stationCode string) []Service {
       </ldb:GetDepartureBoardRequest>
    </soap:Body>
 </soap:Envelope>
-`, nRailAppKey, stationCode,
+`, nRailAppKey, config.Service.Code,
 	)))
 
 	const soapURL = `https://lite.realtime.nationalrail.co.uk/OpenLDBWS/ldb11.asmx`
 	res, err := c.http.Post(soapURL, "text/xml", bytes.NewReader(payload))
 	if err != nil {
-		logrus.Fatalf("Could not POST SOAP: %v", err)
+		logrus.Errorf("Could not complete SOAP request: %v", err)
+		return make([]Service, 0)
 	}
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		logrus.Fatalf("Could not read bytes from body: %v", err)
+		logrus.Errorf("Could not read bytes from body: %v", err)
+		return make([]Service, 0)
 	}
 
 	var statusRes GetDepartureBoardResponseEnvelope
 	err = xml.Unmarshal(b, &statusRes)
 	if err != nil {
-		logrus.Fatalf("Could not unmarshal XML: %v", err)
+		logrus.Errorf("Could not unmarshal XML: %v", err)
+		return make([]Service, 0)
 	}
 
 	services := make([]Service, 0)
 	for _, s := range statusRes.Body.GetDepartureBoardResponse.GetStationBoardResult.TrainServices.Service {
 		origin := s.Origin.Location.LocationName
 		destination := s.Destination.Location.LocationName
-		// TODO(jwilkins): Parse these from ServiceRules instead
-		if origin != "Edinburgh" || destination != "Helensburgh Central" && destination != "Milngavie" && destination != "Bathgate" {
+		if !config.OriginContains(origin) || !config.DestinationContains(destination) {
 			continue
 		}
+
 		service := Service{
 			ID:              s.ServiceID,
 			Origin:          origin,

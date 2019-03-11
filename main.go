@@ -9,9 +9,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/W1lkins/go-for-train/version"
 	"github.com/genuinetools/pkg/cli"
 	"github.com/gregdel/pushover"
+	"github.com/shibukawa/configdir"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,6 +34,8 @@ var (
 	initialHour int
 	// Send messages between this hour (upper bound)
 	finalHour int
+	// Config for the service
+	config Config
 )
 
 func main() {
@@ -76,10 +80,22 @@ func main() {
 		signal.Notify(c, syscall.SIGTERM)
 		go func() {
 			for sig := range c {
-				logrus.Infof("Received %s, exiting.", sig.String())
+				logrus.Infof("received %s, exiting.", sig.String())
 				os.Exit(0)
 			}
 		}()
+
+		configDir := configdir.New("go-for-train", "config")
+		conf := configDir.QueryFolderContainsFile("config.toml")
+		if conf == nil {
+			logrus.Fatalf("no config.toml found in folder: %s", configDir.LocalPath)
+		}
+
+		data, _ := conf.ReadFile("config.toml")
+		_, err := toml.Decode(string(data), &config)
+		if err != nil {
+			logrus.Fatalf("could not decode toml data: %v", err)
+		}
 
 		if once {
 			run()
@@ -99,21 +115,27 @@ func main() {
 
 func run() error {
 	client := NewClient()
-	services := client.GetNextServices("EDP")
+	services := client.GetNextServices()
+	logrus.Infof("Using config: %+v", config)
+
 	for _, service := range services {
-		logrus.Infof("Checking service: %s", service.ID)
+		logrus.Infof("Checking service at: %s", service.Scheduled)
 		if service.Late || service.Cancelled {
 			logrus.Infof("Service %s has an issue, checking whether we should send a notification", service.ID)
+			logrus.Info(service)
+			if !client.messager.shouldSend() {
+				logrus.Info("Not sending message")
+				continue
+			}
+
 			if client.messager.shouldSend() {
-				logrus.Debugf("It is between hour %d and hour %d, sending", initialHour, finalHour)
+				logrus.Infof("Sending message about service at %s", service.Scheduled)
 				recipient := pushover.NewRecipient(pushoverClientKey)
 				message := pushover.NewMessageWithTitle(
-					fmt.Sprintf("Late: %v\nCancelled: %v\nReason: %s", service.Late, service.Cancelled, service.CancelledReason),
+					fmt.Sprintf("Late: %v\nScheduled: %s\nExpected: %s\nCancelled: %v\nReason: %s", service.Late, service.Scheduled, service.Estimated, service.Cancelled, service.CancelledReason),
 					fmt.Sprintf("Problem with service at %s", service.Scheduled),
 				)
 				client.messager.client.SendMessage(message, recipient)
-			} else {
-				logrus.Info("Not sending message")
 			}
 		}
 	}
