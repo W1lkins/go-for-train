@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,7 +14,6 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/W1lkins/go-for-train/version"
 	"github.com/genuinetools/pkg/cli"
-	"github.com/gregdel/pushover"
 	"github.com/shibukawa/configdir"
 	"github.com/sirupsen/logrus"
 )
@@ -26,10 +27,10 @@ var (
 	once bool
 	// NationalRail API key from (http://lite.realtime.nationalrail.co.uk/openldbws/)
 	nRailAppKey string
-	// Pushover app key
-	pushoverAppKey string
-	// Pushover client key
-	pushoverClientKey string
+	// Endpoint to post notifications to
+	notificationEndpoint string
+	// Token required to post messages to endpoint
+	notificationToken string
 	// Send messages between this hour (lower bound)
 	initialHour int
 	// Send messages between this hour (upper bound)
@@ -54,8 +55,8 @@ func main() {
 
 	p.FlagSet.StringVar(&nRailAppKey, "national-rail-key", os.Getenv("NATIONAL_RAIL_APP_KEY"), "national rail api key")
 
-	p.FlagSet.StringVar(&pushoverAppKey, "pushover-app-key", os.Getenv("PUSHOVER_APP_KEY"), "pushover app key")
-	p.FlagSet.StringVar(&pushoverClientKey, "pushover-client-key", os.Getenv("PUSHOVER_CLIENT_KEY"), "pushover client key")
+	p.FlagSet.StringVar(&notificationEndpoint, "notification-endpoint", os.Getenv("NOTIFICATION_ENDPOINT"), "notification endpoint")
+	p.FlagSet.StringVar(&notificationToken, "notification-token", os.Getenv("NOTIFICATION_TOKEN"), "notification token")
 
 	p.FlagSet.IntVar(&initialHour, "initial-hour", 15, "Send messages between these hours (lower bound)")
 	p.FlagSet.IntVar(&finalHour, "final-hour", 17, "Send messages between these hours (upper bound)")
@@ -68,8 +69,8 @@ func main() {
 	}
 
 	p.Action = func(ctx context.Context, args []string) error {
-		if nRailAppKey == "" || pushoverAppKey == "" || pushoverClientKey == "" {
-			return fmt.Errorf("national-rail-key, pushover-app-key, and pushover-client-key are required")
+		if nRailAppKey == "" || notificationEndpoint == "" || notificationToken == "" {
+			return fmt.Errorf("national-rail-key, notification-endpoint, and notificationToken are required")
 		}
 
 		ticker := time.NewTicker(interval)
@@ -114,28 +115,37 @@ func main() {
 }
 
 func run() error {
+	endpoint := notificationEndpoint + "?token=" + notificationToken
 	client := NewClient()
 	services := client.GetNextServices()
 	logrus.Infof("Using config: %+v", config)
+	logrus.Debugf("Using endpoint: %s", endpoint)
 
 	for _, service := range services {
 		logrus.Infof("Checking service at: %s", service.Scheduled)
 		if service.Late || service.Cancelled {
 			logrus.Infof("Service %s has an issue, checking whether we should send a notification", service.ID)
 			logrus.Info(service)
-			if !client.messager.shouldSend() {
+			if !client.shouldNotify() {
 				logrus.Info("Not sending message")
 				continue
 			}
 
-			if client.messager.shouldSend() {
+			if client.shouldNotify() {
 				logrus.Infof("Sending message about service at %s", service.Scheduled)
-				recipient := pushover.NewRecipient(pushoverClientKey)
-				message := pushover.NewMessageWithTitle(
-					fmt.Sprintf("Late: %v\nScheduled: %s\nExpected: %s\nCancelled: %v\nReason: %s", service.Late, service.Scheduled, service.Estimated, service.Cancelled, service.CancelledReason),
-					fmt.Sprintf("Problem with service at %s", service.Scheduled),
-				)
-				client.messager.client.SendMessage(message, recipient)
+				status := ""
+				extra := ""
+				if service.Late {
+					status = "late"
+					extra = fmt.Sprintf("Expected at %s", service.Estimated)
+				}
+				if service.Cancelled {
+					status = "cancelled"
+					extra = fmt.Sprintf("Reason: %s", service.CancelledReason)
+				}
+				message := fmt.Sprintf("Train scheduled for %s is %s. %s", service.Scheduled, status, extra)
+				title := fmt.Sprintf("Problem with service at %s", service.Scheduled)
+				http.PostForm(endpoint, url.Values{"message": {message}, "title": {title}})
 			}
 		}
 	}

@@ -9,28 +9,25 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gregdel/pushover"
 	"github.com/sirupsen/logrus"
 )
 
 // Client is an HTTP client that can be used to make requests
 type Client struct {
-	http     *http.Client
-	messager *Messager
+	http         *http.Client
+	shouldNotify func() bool
 }
 
 // NewClient returns an instance of Client
 func NewClient() Client {
 	http := &http.Client{Timeout: 10 * time.Second}
-	pushover := pushover.New(pushoverAppKey)
 	nine := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), initialHour, 0, 0, 0, time.UTC)
 	five := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), finalHour, 0, 0, 0, time.UTC)
-	shouldSend := func() bool {
+	shouldNotify := func() bool {
 		now := time.Now()
 		return now.Weekday() != 6 && now.Weekday() != 7 && now.After(nine) && now.Before(five)
 	}
-	messager := &Messager{client: pushover, shouldSend: shouldSend}
-	return Client{http, messager}
+	return Client{http, shouldNotify}
 }
 
 // GetNextServices gets the next services for a certain station

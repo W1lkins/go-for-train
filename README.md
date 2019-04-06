@@ -1,13 +1,13 @@
 # go-for-train 🚂
 
-A dumb bot that checks train status and sends messages, specific only to me
+A dumb bot that checks trains I care about and notifies me if they're
+potentially late/cancelled. Uses the National Rail SOAP API and Gotify.
 
 **Table of Contents**
 
 <!-- toc -->
 
 - [Installation](#installation)
-    + [Binaries](#binaries)
     + [Via Go](#via-go)
     + [Running with Docker](#running-with-docker)
 - [Usage](#usage)
@@ -15,10 +15,6 @@ A dumb bot that checks train status and sends messages, specific only to me
 <!-- tocstop -->
 
 ## Installation
-
-#### Binaries
-
-For installation instructions from binaries please visit the [Releases Page](https://github.com/w1lkins/go-for-train/releases).
 
 #### Via Go
 
@@ -30,20 +26,17 @@ $ go get -u -v github.com/w1lkins/go-for-train
 
 **Authentication**
 
-Create a Pushover app and grab your app key and client key from a device you want to send messages to.
 You'll need to sign up to the National Rail API [here](http://realtime.nationalrail.co.uk/OpenLDBWSRegistration/) to get an API key.
+And set up something to receive push notifications to an endpoint with a token. I use [gotify](https://gotify.net/)
 
-**Run it in daemon mode with Pushover key/token + National Rail API key**
+**Run it in daemon mode**
 
 ```console
-# You need to either have environment variables that are
-# PUSHOVER_APP_KEY and PUSHOVER_CLIENT_KEY
-# or pass them into the container.
 $ docker run -d --restart always \
     --name go-for-train \
-    -e PUSHOVER_APP_KEY=foo \
-    -e PUSHOVER_CLIENT_KEY=bar \
-    -e NATIONAL_RAIL_APP_KEY=baz \
+    -e NATIONAL_RAIL_APP_KEY=foo \
+    -e NOTIFICATION_ENDPOINT=https://foo.bar/message \
+    -e NOTIFICATION_TOKEN=bar
     -v /path/to/config.toml:/home/user/.config/go-for-train/config/config.toml \
     w1lkins/go-for-train -d --interval 15m
 ```
@@ -57,14 +50,14 @@ Usage: go-for-train <command>
 
 Flags:
 
-  -d, --debug            enable debug logging (default: false)
-  --final-hour           Send messages between these hours (upper bound) (default: 17)
-  --initial-hour         Send messages between these hours (lower bound) (default: 15)
-  --interval             update interval (ex. 5ms, 10s, 1m, 3h) (default: 10m0s)
-  --national-rail-key    national rail api key (default: <none>)
-  --once                 run once and exit (default: false)
-  --pushover-app-key     pushover app key (default: <none>)
-  --pushover-client-key  pushover client key (default: <none>)
+  -d, --debug              enable debug logging (default: false)
+  --final-hour             Send messages between these hours (upper bound) (default: 17)
+  --initial-hour           Send messages between these hours (lower bound) (default: 15)
+  --interval               update interval (ex. 5ms, 10s, 1m, 3h) (default: 10m0s)
+  --national-rail-key      national rail api key (default: <none>)
+  --notification-endpoint  notification endpoint (default: <none>)
+  --notification-token     notification token (default: <none>)
+  --once                   run once and exit (default: false)
 
 Commands:
 
