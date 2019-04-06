@@ -1,7 +1,9 @@
 # go-for-train 🚂
 
 A dumb bot that checks trains I care about and notifies me if they're
-potentially late/cancelled. Uses the National Rail SOAP API and Gotify.
+potentially late/cancelled.
+
+Uses the National Rail SOAP API and Gotify.
 
 **Table of Contents**
 
@@ -27,6 +29,7 @@ $ go get -u -v github.com/w1lkins/go-for-train
 **Authentication**
 
 You'll need to sign up to the National Rail API [here](http://realtime.nationalrail.co.uk/OpenLDBWSRegistration/) to get an API key.
+
 And set up something to receive push notifications to an endpoint with a token. I use [gotify](https://gotify.net/)
 
 **Run it in daemon mode**
