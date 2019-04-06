@@ -39,7 +39,7 @@ $ docker run -d --restart always \
     --name go-for-train \
     -e NATIONAL_RAIL_APP_KEY=foo \
     -e NOTIFICATION_ENDPOINT=https://foo.bar/message \
-    -e NOTIFICATION_TOKEN=bar
+    -e NOTIFICATION_TOKEN=bar \
     -v /path/to/config.toml:/home/user/.config/go-for-train/config/config.toml \
     w1lkins/go-for-train -d --interval 15m
 ```
