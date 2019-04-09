@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/W1lkins/go-for-train/version"
 	"github.com/genuinetools/pkg/cli"
 	"github.com/shibukawa/configdir"
 	"github.com/sirupsen/logrus"
@@ -37,14 +36,20 @@ var (
 	finalHour int
 	// Config for the service
 	config Config
+	// Stored sentIDs for the session
+	sentIDs []string
+	// Version of the binary
+	VERSION string
+	// Current sha of the binary
+	GITCOMMIT string
 )
 
 func main() {
 	p := cli.NewProgram()
 	p.Name = "go-for-train"
 	p.Description = "A bot that checks the status of my train journey and notifies me about it."
-	p.GitCommit = version.GITCOMMIT
-	p.Version = version.VERSION
+	p.GitCommit = GITCOMMIT
+	p.Version = VERSION
 
 	p.FlagSet = flag.NewFlagSet("go-for-train", flag.ExitOnError)
 	p.FlagSet.BoolVar(&debug, "d", false, "enable debug logging")
@@ -114,6 +119,15 @@ func main() {
 	p.Run()
 }
 
+func stringInSlice(check string, slice []string) bool {
+	for _, s := range slice {
+		if s == check {
+			return true
+		}
+	}
+	return false
+}
+
 func run() error {
 	endpoint := notificationEndpoint + "?token=" + notificationToken
 	client := NewClient()
@@ -131,21 +145,26 @@ func run() error {
 				continue
 			}
 
-			if client.shouldNotify() {
-				logrus.Infof("Sending message about service at %s", service.Scheduled)
-				status := ""
-				extra := ""
-				if service.Late {
-					status = "late"
-					extra = fmt.Sprintf("Expected at %s", service.Estimated)
-				}
-				if service.Cancelled {
-					status = "cancelled"
-					extra = fmt.Sprintf("Reason: %s", service.CancelledReason)
-				}
-				message := fmt.Sprintf("Train scheduled for %s is %s. %s", service.Scheduled, status, extra)
-				title := fmt.Sprintf("Problem with service at %s", service.Scheduled)
+			logrus.Infof("Sending message about service at %s", service.Scheduled)
+			status := ""
+			extra := ""
+			if service.Late {
+				status = "late"
+				extra = fmt.Sprintf("Expected at %s", service.Estimated)
+			}
+			if service.Cancelled {
+				status = "cancelled"
+				extra = fmt.Sprintf("Reason: %s", service.CancelledReason)
+			}
+			message := fmt.Sprintf("Train scheduled for %s is %s. %s", service.Scheduled, status, extra)
+			title := fmt.Sprintf("Problem with service at %s", service.Scheduled)
+			if !stringInSlice(service.ID, sentIDs) {
+				logrus.Debugf("Sending message since %s not in sent list", service.ID)
 				http.PostForm(endpoint, url.Values{"message": {message}, "title": {title}})
+				logrus.Debug("Adding service to sent slice")
+				sentIDs = append(sentIDs, service.ID)
+			} else {
+				logrus.Debugf("Not sending message for service %s since one has already been sent", service.ID)
 			}
 		}
 	}
