@@ -5,7 +5,7 @@ ENV GOPATH /go
 
 RUN	apk add --no-cache ca-certificates bash
 
-COPY . /go/src/github.com/W1lkins/go-for-train
+COPY . /go/src/github.com/evalexpr/go-for-train
 
 RUN set -x \
 	&& apk add --no-cache --virtual .build-deps \
@@ -14,7 +14,7 @@ RUN set -x \
 		libc-dev \
 		libgcc \
 		make \
-	&& cd /go/src/github.com/W1lkins/go-for-train \
+	&& cd /go/src/github.com/evalexpr/go-for-train \
     && make vendor \
     && make static \
 	&& mv go-for-train /usr/bin/go-for-train \

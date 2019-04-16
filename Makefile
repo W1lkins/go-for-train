@@ -4,7 +4,7 @@ SHELL := /bin/bash
 
 # Naming and directories
 NAME := $(shell echo $${PWD\#\#*/})
-PKG := github.com/W1lkins/$(NAME)
+PKG := github.com/evalexpr/$(NAME)
 
 VERSION := $(shell cat VERSION.txt)
 GITCOMMIT := $(shell git rev-parse --short HEAD)

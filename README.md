@@ -21,7 +21,7 @@ Uses the National Rail SOAP API and Gotify.
 #### Via Go
 
 ```console
-$ go get -u -v github.com/w1lkins/go-for-train
+$ go get -u -v github.com/evalexpr/go-for-train
 ```
 
 #### Running with Docker
@@ -41,7 +41,7 @@ $ docker run -d --restart always \
     -e NOTIFICATION_ENDPOINT=https://foo.bar/message \
     -e NOTIFICATION_TOKEN=bar \
     -v /path/to/config.toml:/home/user/.config/go-for-train/config/config.toml \
-    w1lkins/go-for-train -d --interval 15m
+    evalexpr/go-for-train -d --interval 15m
 ```
 
 ## Usage

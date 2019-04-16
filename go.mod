@@ -1,4 +1,4 @@
-module github.com/W1lkins/go-for-train
+module github.com/evalexpr/go-for-train
 
 go 1.12
 
