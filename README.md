@@ -41,7 +41,7 @@ $ docker run -d --restart always \
     -e NOTIFICATION_ENDPOINT=https://foo.bar/message \
     -e NOTIFICATION_TOKEN=bar \
     -v /path/to/config.toml:/home/user/.config/go-for-train/config/config.toml \
-    evalexpr/go-for-train -d --interval 15m
+    w1lkins/go-for-train -d --interval 15m
 ```
 
 ## Usage
